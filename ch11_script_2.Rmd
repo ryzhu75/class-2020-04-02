@@ -141,23 +141,74 @@ Fifth, how do the above answers change if, instead of using `good_education`, we
 
 **Prompt** Using the `lm()` function, fit a model with this data in which `poverty` is the dependent variable and `less_than_hs` is the independent variable. Save the resulting object as `poverty_model`. Then, use the tidy() function found in section 11.1.2 to obtain the regression parameters. You should have a 2x7 regression table in which the `term` variable has two values: "(Intercept)" and "less_than_hs". There are five other variables. Write one sentence explaining what the intercept means and one sentence about what the slope of the regression means. Chapter 11 of the *Primer* has lots of useful guidance.
 
+
+
+```{r Scene 8 }
+# Fit Regression Model
+
+poverty_model <- county %>% 
+  lm(poverty ~ less_than_hs, data = .)
+
+# Get regression model
+
+poverty_model %>% 
+  tidy(conf.int = TRUE)
+
+```
+
+Intercept: Value of Y when X = 0; The theoretical poverty rate if the rate of "less_than_hs" is 0 
+Regression: On average, every one percentage point change in less_than_hs is associated with a difference in 0.63655 in poverty rate
+
+
 # Scene 9
 
 **Prompt** Use nest() to create a 1,000 bootstrap samples of the the data, just as we did when estimating confidence intervals. In each row of this tibble, we'll have a resampled collection of counties in which we’ll sometimes have multiple counties represented and sometimes there will be counties that don't even appear. Use `cache=TRUE` in your R code chunk options since this takes time and you don't want to recalculate it each time. Save the resulting object as `county_bootstrap`.
 
 When first creating this, or any other objecting with bootstrap resamples, it is smart to get everything working with three replicates before moving to n = 1000.
 
-At this stage, `county_bootstrap` has two columns: `replicate` (an integer) and `data` (a list). Explore this object by going to the Environment pane and clicking on `county_bootstrap`. Normally, we don't explore objects starting from the Environment pane but list columns are confusing and this is an easy way to examine them. 
+At this stage, `county_bootstrap` has two columns: `replicate` (an integer) and `data` (a list). Explore this object by going to the Environment pane and clicking on `county_bootstrap`. Normally, we don't explore objects starting from the Environment pane but list columns are confusing and this is an easy way to examine them.
+
+```{r scene 9, cach = TRUE}
+
+set.seed(1)
+
+# Create a bootstrapped tibble + column proving that all boostrapped resamples
+# are unique
+
+county_bootstrap <- county %>%
+  select(poverty, less_than_hs) %>% 
+  rep_sample_n(size = nrow(county), replace = TRUE, reps = 100) %>% 
+  group_by(replicate) %>% 
+  nest() %>% 
+  mutate(distinct_rows = map_int(data, ~ n_distinct(.)))
+
+county_bootstrap
+ 
+```
 
 How can we check to make sure that the rows in `data` are different, as they should be if the bootstrap samples really are different? Add a third column, called `distinct_rows`, which is the the number of distinct rows  in `data` for each replicate. Hint: `n_distinct`. Recall that, when we work with list columns, like `data`, we use different map functions --- `map`, `map_dbl`, et cetera --- depending what our function is returning. And don't forget the tilde. Have you read [these](https://davidkane9.github.io/PPBDS/6-functions.html#using-map_-functions-to-create-list-columns) [parts](https://davidkane9.github.io/PPBDS/11-regression.html#uncertainty-in-simple-linear-regressions) of the *Primer* recently?
 
 And, yes, it is somewhat awkward that `nest()` produces a column called `data` and that "data" is such a common term used in many places in R. We just need to keep track of things, even when they have the same names. Life is hard!
 
 
-
 # Scene 10 
 
-**Prompt**  Now, using the starter code above, go ahead and add more columns. Make one called `mod` which will contains the model objects created by `lm()`. Then, add one called `reg_results` which will tidy the objects created by `lm()`, and then one called `disp_coef` which will display the regression coefficient for each bootstrap sample. Is all this a mystery? Check out chapter 11 in the *Primer*. 
+**Prompt**  Now, using the starter code above, go ahead and add more columns. Make one called `mod` which will contains the model objects created by `lm()`. Then, add one called `reg_results` which will tidy the objects created by `lm()`, and then one called `disp_coef` which will display the regression coefficient for each bootstrap sample. Is all this a mystery? Check out chapter 11 in the *Primer*.
+
+
+```{r scene 10}
+
+set.seed(1)
+
+county_bootstrap <- county_bootstrap %>% 
+  mutate(mod = map(data, ~lm(poverty ~ less_than_hs, data = .))) %>% 
+  mutate(reg_results = map(mod, ~tidy(.))) %>% 
+  mutate(disp_coef = map_dbl(reg_results, ~filter(., term == "less_than_hs") %>% 
+                               pull(estimate)))
+
+county_bootstrap
+ 
+```
 
 # Scene 11 
 

@@ -449,18 +449,85 @@ county_education_poverty &lt;- county %&gt;%
 <div id="scene-8" class="section level1">
 <h1>Scene 8</h1>
 <p><strong>Prompt</strong> Using the <code>lm()</code> function, fit a model with this data in which <code>poverty</code> is the dependent variable and <code>less_than_hs</code> is the independent variable. Save the resulting object as <code>poverty_model</code>. Then, use the tidy() function found in section 11.1.2 to obtain the regression parameters. You should have a 2x7 regression table in which the <code>term</code> variable has two values: “(Intercept)” and “less_than_hs”. There are five other variables. Write one sentence explaining what the intercept means and one sentence about what the slope of the regression means. Chapter 11 of the <em>Primer</em> has lots of useful guidance.</p>
+<pre class="r"><code># Fit Regression Model
+
+poverty_model &lt;- county %&gt;% 
+  lm(poverty ~ less_than_hs, data = .)
+
+# Get regression model
+
+poverty_model %&gt;% 
+  tidy(conf.int = TRUE)</code></pre>
+<pre><code>## # A tibble: 2 x 7
+##   term         estimate std.error statistic   p.value conf.low conf.high
+##   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+## 1 (Intercept)     6.64     0.193       34.3 4.67e-219    6.26      7.01 
+## 2 less_than_hs    0.637    0.0130      48.8 0.           0.611     0.662</code></pre>
+<p>Intercept: Value of Y when X = 0; The theoretical poverty rate if the rate of “less_than_hs” is 0 Regression: On average, every one percentage point change in less_than_hs is associated with a difference in 0.63655 in poverty rate</p>
 </div>
 <div id="scene-9" class="section level1">
 <h1>Scene 9</h1>
 <p><strong>Prompt</strong> Use nest() to create a 1,000 bootstrap samples of the the data, just as we did when estimating confidence intervals. In each row of this tibble, we’ll have a resampled collection of counties in which we’ll sometimes have multiple counties represented and sometimes there will be counties that don’t even appear. Use <code>cache=TRUE</code> in your R code chunk options since this takes time and you don’t want to recalculate it each time. Save the resulting object as <code>county_bootstrap</code>.</p>
 <p>When first creating this, or any other objecting with bootstrap resamples, it is smart to get everything working with three replicates before moving to n = 1000.</p>
 <p>At this stage, <code>county_bootstrap</code> has two columns: <code>replicate</code> (an integer) and <code>data</code> (a list). Explore this object by going to the Environment pane and clicking on <code>county_bootstrap</code>. Normally, we don’t explore objects starting from the Environment pane but list columns are confusing and this is an easy way to examine them.</p>
+<pre class="r"><code>set.seed(1)
+
+# Create a bootstrapped tibble + column proving that all boostrapped resamples
+# are unique
+
+county_bootstrap &lt;- county %&gt;%
+  select(poverty, less_than_hs) %&gt;% 
+  rep_sample_n(size = nrow(county), replace = TRUE, reps = 100) %&gt;% 
+  group_by(replicate) %&gt;% 
+  nest() %&gt;% 
+  mutate(distinct_rows = map_int(data, ~ n_distinct(.)))
+
+county_bootstrap</code></pre>
+<pre><code>## # A tibble: 100 x 3
+## # Groups:   replicate [100]
+##    replicate data                 distinct_rows
+##        &lt;int&gt; &lt;list&gt;                       &lt;int&gt;
+##  1         1 &lt;tibble [3,129 × 2]&gt;          1925
+##  2         2 &lt;tibble [3,129 × 2]&gt;          1906
+##  3         3 &lt;tibble [3,129 × 2]&gt;          1902
+##  4         4 &lt;tibble [3,129 × 2]&gt;          1913
+##  5         5 &lt;tibble [3,129 × 2]&gt;          1902
+##  6         6 &lt;tibble [3,129 × 2]&gt;          1893
+##  7         7 &lt;tibble [3,129 × 2]&gt;          1884
+##  8         8 &lt;tibble [3,129 × 2]&gt;          1900
+##  9         9 &lt;tibble [3,129 × 2]&gt;          1893
+## 10        10 &lt;tibble [3,129 × 2]&gt;          1910
+## # … with 90 more rows</code></pre>
 <p>How can we check to make sure that the rows in <code>data</code> are different, as they should be if the bootstrap samples really are different? Add a third column, called <code>distinct_rows</code>, which is the the number of distinct rows in <code>data</code> for each replicate. Hint: <code>n_distinct</code>. Recall that, when we work with list columns, like <code>data</code>, we use different map functions — <code>map</code>, <code>map_dbl</code>, et cetera — depending what our function is returning. And don’t forget the tilde. Have you read <a href="https://davidkane9.github.io/PPBDS/6-functions.html#using-map_-functions-to-create-list-columns">these</a> <a href="https://davidkane9.github.io/PPBDS/11-regression.html#uncertainty-in-simple-linear-regressions">parts</a> of the <em>Primer</em> recently?</p>
 <p>And, yes, it is somewhat awkward that <code>nest()</code> produces a column called <code>data</code> and that “data” is such a common term used in many places in R. We just need to keep track of things, even when they have the same names. Life is hard!</p>
 </div>
 <div id="scene-10" class="section level1">
 <h1>Scene 10</h1>
 <p><strong>Prompt</strong> Now, using the starter code above, go ahead and add more columns. Make one called <code>mod</code> which will contains the model objects created by <code>lm()</code>. Then, add one called <code>reg_results</code> which will tidy the objects created by <code>lm()</code>, and then one called <code>disp_coef</code> which will display the regression coefficient for each bootstrap sample. Is all this a mystery? Check out chapter 11 in the <em>Primer</em>.</p>
+<pre class="r"><code>set.seed(1)
+
+county_bootstrap &lt;- county_bootstrap %&gt;% 
+  mutate(mod = map(data, ~lm(poverty ~ less_than_hs, data = .))) %&gt;% 
+  mutate(reg_results = map(mod, ~tidy(.))) %&gt;% 
+  mutate(disp_coef = map_dbl(reg_results, ~filter(., term == &quot;less_than_hs&quot;) %&gt;% 
+                               pull(estimate)))
+
+county_bootstrap</code></pre>
+<pre><code>## # A tibble: 100 x 6
+## # Groups:   replicate [100]
+##    replicate data                 distinct_rows mod    reg_results     disp_coef
+##        &lt;int&gt; &lt;list&gt;                       &lt;int&gt; &lt;list&gt; &lt;list&gt;              &lt;dbl&gt;
+##  1         1 &lt;tibble [3,129 × 2]&gt;          1925 &lt;lm&gt;   &lt;tibble [2 × 5…     0.672
+##  2         2 &lt;tibble [3,129 × 2]&gt;          1906 &lt;lm&gt;   &lt;tibble [2 × 5…     0.640
+##  3         3 &lt;tibble [3,129 × 2]&gt;          1902 &lt;lm&gt;   &lt;tibble [2 × 5…     0.663
+##  4         4 &lt;tibble [3,129 × 2]&gt;          1913 &lt;lm&gt;   &lt;tibble [2 × 5…     0.634
+##  5         5 &lt;tibble [3,129 × 2]&gt;          1902 &lt;lm&gt;   &lt;tibble [2 × 5…     0.675
+##  6         6 &lt;tibble [3,129 × 2]&gt;          1893 &lt;lm&gt;   &lt;tibble [2 × 5…     0.581
+##  7         7 &lt;tibble [3,129 × 2]&gt;          1884 &lt;lm&gt;   &lt;tibble [2 × 5…     0.611
+##  8         8 &lt;tibble [3,129 × 2]&gt;          1900 &lt;lm&gt;   &lt;tibble [2 × 5…     0.634
+##  9         9 &lt;tibble [3,129 × 2]&gt;          1893 &lt;lm&gt;   &lt;tibble [2 × 5…     0.654
+## 10        10 &lt;tibble [3,129 × 2]&gt;          1910 &lt;lm&gt;   &lt;tibble [2 × 5…     0.639
+## # … with 90 more rows</code></pre>
 </div>
 <div id="scene-11" class="section level1">
 <h1>Scene 11</h1>
