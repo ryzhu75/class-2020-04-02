@@ -18,6 +18,123 @@ library(tidyverse)
 county <- read_rds("county.rds")
 ```
 
+# Class One Start
+
+### Scene 1
+
+**Prompt:** Explore the county level data from [here](https://www.ers.usda.gov/data-products/county-level-data-sets/download-data/) with your partner and try to figure out what the variables mean. Can you find any "interesting" observations? Which variables are worth looking at? `poverty` is the percentage of the county living in poverty is 2018. `less_than_hs` is the percentage of the county without at least a high school diploma. `hs` is the percent of the county who have a high school degree, but no further education. Useful functions include `print()`, `glimpse()`, `head()`, `tail()`, `summary()` and `skim()`. 
+
+We are interested in understanding how poverty is correlated with (and influenced by?) education.
+
+
+```{r package}
+
+county <- read_rds("county.rds")
+
+county %>% 
+  summarize(mean_poverty = mean(poverty))
+
+```
+
+# Scene 2
+
+**Prompt** Let’s start by exploring our numerical outcome variable `poverty` and our numerical explanatory variable `less_than_hs`. What is the average poverty rate in the US? How does this compare with that of your county (if you are not from US look up Middlesex County - the county that Cambridge, MA is in)? Furthermore, what is the average percentage of adults without a high school diploma? Which state's county has the highest percentage of adults without a high school diploma?
+
+
+```{r Scene 2}
+
+```
+
+
+# Scene 3
+
+**Prompt:** What is the correlation coefficient of `poverty` and `less_than_hs`? What does it mean? What does it suggest about the relation between the percent of the population in poverty in 2018 and the percent of the population with less than a high school degree in 2014? 
+
+For every 1 percentage point increase in the population without a high school degree in 2014, there is an associated 0.65 percentage point increase in population poverty in 2018
+
+```{r Scene 3}
+
+county %>% 
+  summarize(correlation = cor(less_than_hs, poverty))
+
+```
+
+# Scene 4
+
+**Prompt:** Use a scatterplot to visualize this data, including a straight line of best fit. The dependent variable is `poverty`. The independent variable is `less_than_hs`.
+
+```{r Scene 4}
+
+lesshs_poverty_plot <- county %>% 
+  ggplot(aes(x = less_than_hs, y = poverty)) +
+  geom_point() +
+  geom_smooth(method = "lm", se= FALSE)
+
+```
+
+# Scene 5
+
+**Prompt** Create an animation of the scatterplot above with the percent of adults with less than a high school diploma on the x axis and the poverty rate in the y axis. This scatterplot should transition through the four US regions. Hint: Read the [Animation appendix](https://davidkane9.github.io/PPBDS/C-animation.html) of the *[Primer](https://davidkane9.github.io/PPBDS/)*. You need to do two things. First, make the points a different color for each region. Second, add one **gganimate** command to the basic static `ggplot()` call.
+
+Here is an example: https://rpubs.com/ruchajoshi/regional_poverty
+
+```{r Scene 5}
+
+county %>% 
+  ggplot(aes(x = less_than_hs, y = poverty, color = region)) +
+  geom_point() +
+  geom_smooth(method = "lm", se= FALSE) +
+  transition_manual(region)
+
+```
+
+# Scene 6
+
+**Prompt:** Assume that we are trying to understand the causes of poverty in US counties. Chapter 11 discusses two types of approaches: modeling for explanation and modeling for prediction. (Recall the definitions of these terms.) Which kind is this? Write down some bullet points which make the case for one or the other. 
+
+Modeling for Explanation:
+- Trying to explain the relationship between poverty and less_than_hs
+- Intentional faceting by region to analyze regional differences in this relationship
+
+Modeling for Prediction: 
+- Could be used to predict future poverty rates given high school graduation rates
+
+# Scene 7
+
+**Prompt:** Assume we want to create an explanatory model. Create a new variable, `good_education`, which is 1 if `less_than_hs` is less than 13 and 0 if it is not. In other words, we are defining counties with fewer residents who have less than a high school education as having a `good_education`. Counties with more do not have a `good_education`. (13% is about the average across the US.)  
+
+First, what is the average poverty in the `good_education` = 1 counties versus `good_education` = 0 counties?
+
+```{r Scene 7 First}
+
+# First: Find mean poverty levels for less_than_hs <13 and >13
+
+county_education_poverty <- county %>% 
+  mutate(good_education = ifelse(less_than_hs < 13,
+                                 TRUE,
+                                 FALSE)) %>% 
+  group_by(good_education) %>% 
+  summarize(mean_poverty = mean(poverty))
+
+```
+
+Second, does this suggest that `good_education` is associated with less poverty? If a new county had `good_education` what would you guess its povery rate is?
+
+  First- yes, associations of the averages caan be made. Second, it's around 11.9%, but you could conduct a confidence interval to get a range of possibilities accounting for variation.
+
+Third, does this suggest that `good_education` causes less poverty? If you change education in a county, will poverty change?
+
+  Not necessarily; correlation =/= causation
+
+Fourth, recall the Rubin Causal Model and potential outcomes. Write down the units, the treatments, and the outcomes. Define the causal effect of `good_education` on poverty rate. What is the fundamental problem of causal inference?
+
+  Units: % of people who have completed HS
+  Treatment: Good-education (<13% of population with less than a HS degree)
+  Causal Effect: Effect of good education on poverty rate
+  Fundamental Problem: Can't provide a treatment and control for the same county underneath identical circumstances
+  
+Fifth, how do the above answers change if, instead of using `good_education`, we use `less_than_hs` instead?
+  
 # Class Two
 
 # Scene 8
